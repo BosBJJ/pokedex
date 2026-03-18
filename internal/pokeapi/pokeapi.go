@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func GetLocations(url string) (LocationArea, error){
+func (c *PokeClient) GetLocations(url string) (LocationArea, error){
 	res, err := http.Get(url)
 	if err != nil {
 		return LocationArea{}, fmt.Errorf("Error: %w", err)
@@ -24,6 +24,22 @@ func GetLocations(url string) (LocationArea, error){
 
 }
 
+func (c *PokeClient) ExploreLocation(url string) (ExploreArea, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		return ExploreArea{}, fmt.Errorf("Error: %w", err)
+	}
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+
+	exploreRes := ExploreArea{}
+	err = json.Unmarshal(body, &exploreRes)
+	if err != nil {
+		return ExploreArea{}, fmt.Errorf("Explore results could not be unmarshaled: %w", err)
+	}
+	return exploreRes, nil
+}
+
 type LocationArea struct {
 	Count int 			`json:"count"`
 	Next *string 		`json:"next"`
@@ -32,4 +48,12 @@ type LocationArea struct {
 		Name string 	`json:"name"`
 		URL string 		`json:"url"`
 	} `json:"results"`
+}
+
+type ExploreArea struct {
+	PokemonEncounters []struct {
+		Pokemon struct {
+			Name string  	`json:"name"`
+		} 					`json:"pokemon"`
+	} 						`json:"pokemon_encounters"`
 }

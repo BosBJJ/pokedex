@@ -5,19 +5,20 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
+	"time"
 	"github.com/BosBJJ/pokedex/internal/pokeapi"
 )
 
 type cliCommand struct {
 	name 		string
 	description string
-	callback 	func(*Config)error
+	callback 	func(*Config, []string)error
 }
 
 type Config struct {
 	Next 		*string
 	Previous 	*string
+	Client 		pokeapi.PokeClient
 }
 
 func getCommands() map[string]cliCommand{
@@ -38,9 +39,14 @@ func getCommands() map[string]cliCommand{
 		callback: 		commandMap,
 	},
 	"mapb": {
-		name: "map back",
-		description: "Displays previous 20 locations",
-		callback: commandMapb,
+		name: 			"map back",
+		description: 	"Displays previous 20 locations",
+		callback: 		commandMapb,
+	},
+	"explore": {
+		name: 			"explore",
+		description: 	"Displays pokemon in the area",
+		callback: 		commandExplore,
 	},
 }
 
@@ -56,7 +62,9 @@ func cleanInput(text string) []string{
 
 func startRepl(){
 	scanner := bufio.NewScanner(os.Stdin)
-	config := &Config{}
+	config := &Config{
+		Client: pokeapi.NewPokeClient(5*time.Second, 5*time.Minute),
+	}
 	for{
 		fmt.Print("Pokedex > ")
 		if !scanner.Scan(){
@@ -74,59 +82,9 @@ func startRepl(){
 			fmt.Println("Unknown command")
 			continue
 		}
-		err := command.callback(config)
+		err := command.callback(config, cleaned)
 		if err != nil {
 			fmt.Println(err)
 		}
 	}
-}
-
-func commandExit(config *Config) error {
-	fmt.Print("Closing the Pokedex... Goodbye!")
-	os.Exit(0)
-	return nil
-}
-
-func commandHelp(config *Config) error {
-	fmt.Println("Welcome to the Pokedex!")
-	fmt.Println("Usage:")
-	fmt.Println("")
-	fmt.Println("help: Displays a help message")
-	fmt.Println("exit: Exit the Pokedex")
-	return nil
-}
-
-func commandMap(config *Config) error {
-	url := "https://pokeapi.co/api/v2/location-area"
-	if config.Next != nil {
-		url = *config.Next
-	}
-	getLocs, err := pokeapi.GetLocations(url)
-	if err != nil {
-		return fmt.Errorf("Error: %w", err)
-	}
-	config.Next = getLocs.Next
-	config.Previous = getLocs.Previous
-	for _, loc := range getLocs.Results{
-		fmt.Println(loc.Name)
-	}
-	return nil
-}
-
-func commandMapb(config *Config) error {
-	if config.Previous == nil {
-		fmt.Print("You're already on the first page")
-		return nil
-	}
-	url := *config.Previous
-	getLocs, err := pokeapi.GetLocations(url)
-	if err != nil {
-		return fmt.Errorf("Error: %w", err)
-	}
-	config.Next = getLocs.Next
-	config.Previous = getLocs.Previous
-	for _, loc := range getLocs.Results{
-		fmt.Println(loc.Name)
-	}
-	return nil
 }
